@@ -118,8 +118,13 @@ public:
 			if (current == sort_end) {
 				while (stack.back() - sort_end > sort_limit) {
 					auto range_size = stack.back() - current;
-					value_type pivot = *(current + (mt() % range_size));
-					auto it = std::partition(
+					// BN: do some sanity checks on the pivot to avoid infinite loops
+					//value_type pivot = *(current + (mt() % range_size));
+                                        auto pivot_addr = current + (mt() % range_size) + 1;
+                                        if (pivot_addr >= sort_end or pivot_addr == current) break;
+                                        value_type pivot = *pivot_addr;
+
+                                        auto it = std::partition(
 											 current,
 											 stack.back(),
 											 [=](const value_type& v) { return v < pivot; });
