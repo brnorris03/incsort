@@ -20,6 +20,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <iostream>
 
 
 // Pre-sorting
@@ -122,12 +123,31 @@ public:
 											 current,
 											 stack.back(),
 											 [=](const value_type& v) { return v < pivot; });
+					int64_t counter = 0;	// BCH: THIS IS DEBUG CODE, USED TO DETECT A HANG IN THE LOOP THAT FOLLOWS
 					while (it == current) {
 						pivot = *(current + (mt() % range_size));
 						it = std::partition(
 											current,
 											stack.back(),
 											[=](const value_type& v) { return v < pivot; });
+						// BCH : HANG DETECTION.  You can confirm that the hang is real by commenting this out, of course.
+						// The hang appears to occur when the whole range of values that the pivot could be drawn from is
+						// identical; the partition then does nothing, and returns current, and so it == current, so we go
+						// around again, choose another pivot, etc.  So the way in which the original algorithm's
+						// recursion was unwound here seems to have a small bug that causes an infinite loop in that case.
+						// Or maybe the bug was present in the original algorithm, too, but that seems unlikely.
+						// Note that because of the way sort_limit is used to fall back to std::sort(), the number of
+						// duplicate pivot values must be larger than sort_limit to hit this hang.  So you can make the
+						// hang reproduce with a smaller test vector by setting sort_limit to be smaller; if you set it
+						// to 5, you can change LENGTH in FAIL_TEST() to 6, and reproduce the bug with the test vector
+						// [0, 0, 0, 0, 0, 0], but I have not done that here because sort_limit == 100 is the original
+						// value used by Lars Hagen.  But I don't think there's anything magic about it, it's just
+						// chosen heuristically to optimize performance.
+						if (++counter == 10000000)
+						{
+							std::cout << "HANG -- EXITING" << std::endl;
+							exit(EXIT_FAILURE);
+						}
 					}
 					stack.push_back(it);
 				}

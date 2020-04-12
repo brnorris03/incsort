@@ -28,6 +28,7 @@
 using namespace std::chrono;
 
 
+// This code should be easily adaptable to other value types, but for now we'll work with int64_t
 typedef std::vector<int64_t> vector_type;
 typedef vector_type::iterator iterator_type;
 
@@ -47,51 +48,60 @@ static void print_vec(std::string prefix, vector_type &v, std::string postfix = 
 	std::cout << postfix;
 }
 
-static void print_test(int64_t len)
+static void basic_test(int64_t len)
 {
 	int64_t half = len >> 1;
-	vector_type v;
+	vector_type initial;
 	
 	std::cout << "Basic integrity test, sorting [-" << half << ", " << (half - 1) << "]:" << std::endl << std::endl;
 	
 	// initial contents
-	for (int64_t i = -half; i < half; ++i) v.push_back(i);
-	print_vec("initial: ", v);
+	for (int64_t i = -half; i < half; ++i) initial.push_back(i);
+	print_vec("initial: ", initial);
 	
 	// pre-sorted
-	std::random_shuffle(v.begin(), v.end());
-	print_vec("shuffled: ", v);
-	
 	{
+		vector_type v = initial;
+		std::random_shuffle(v.begin(), v.end());
+		print_vec("shuffled: ", v);
+		
 		pre_sorter<iterator_type> sorter(v.begin(), v.end());
 		vector_type w;
 		
 		for (const auto &e : sorter) w.push_back(e);
 		print_vec("sorted: ", w);
+		if (w != initial)
+			std::cout << "   NOT EQUAL!" << std::endl;
 	}
 	
 	// partial-sorted
-	std::random_shuffle(v.begin(), v.end());
-	print_vec("shuffled: ", v);
-	
 	{
+		vector_type v = initial;
+		std::random_shuffle(v.begin(), v.end());
+		print_vec("shuffled: ", v);
+		
 		partial_sorter<iterator_type> sorter(v.begin(), v.end());
 		vector_type w;
 		
 		for (const auto &e : sorter) w.push_back(e);
 		print_vec("sorted: ", w);
+		if (w != initial)
+			std::cout << "   NOT EQUAL!" << std::endl;
 	}
 	
 	// incrementally quick-sorted
-	std::random_shuffle(v.begin(), v.end());
-	print_vec("shuffled: ", v);
-	
 	{
+		vector_type v = initial;
+		std::random_shuffle(v.begin(), v.end());
+		print_vec("shuffled: ", v);
+		
 		simple_quick_sorter<iterator_type> sorter(v.begin(), v.end());
 		vector_type w;
 		
 		for (const auto &e : sorter) w.push_back(e);
 		print_vec("sorted: ", w);
+		if (w != initial)
+			std::cout << "   NOT EQUAL!" << std::endl;
 	}
 	
 	std::cout << std::endl << std::string(70, '=') << std::endl << std::endl;
@@ -148,11 +158,42 @@ static int64_t time_test(vector_type &initial, vector_type &shuffled, int64_t fe
 	// test for correctness
 	if ((w.size() != fetch_count) || !std::equal(initial.begin(), initial.begin() + fetch_count, w.begin()))
 	{
-		std::cout << "NOT EQUAL!" << std::endl;
+		std::cout << "NOT EQUAL WITH ALGORITHM " << algorithm << "!" << std::endl;
+		print_vec("SHUFFLED : ", shuffled, "\n");
+		print_vec("CORRECT  : ", initial, "\n");
+		print_vec("RESULTS  : ", w, "\n");
 		exit(EXIT_FAILURE);
 	}
 	
 	return duration.count();
+}
+
+static void collision_test(int64_t reps, int64_t len)
+{
+	for (int algorithm = 0; algorithm <= 2; ++algorithm)
+	{
+		std::cout << "Collision test, algorithm " << algorithm << " : ";
+		
+		for (int64_t rep = 0; rep < reps; ++rep)
+		{
+			vector_type initial;
+			int64_t dups = len >> 2;
+			
+			for (int64_t i = 0; i < dups; ++i) initial.push_back(-1);
+			for (int64_t i = 0; i < dups; ++i) initial.push_back(0);
+			for (int64_t i = 0; i < dups; ++i) initial.push_back(1);
+			for (int64_t i = 0; i < dups; ++i) initial.push_back(2);
+			
+			vector_type shuffled = initial;
+			std::random_shuffle(shuffled.begin(), shuffled.end());
+			
+			time_test(initial, shuffled, len, algorithm);
+		}
+		
+		std::cout << "passed" << std::endl;
+	}
+	
+	std::cout << std::endl << std::string(70, '=') << std::endl << std::endl;
 }
 
 static void run_time_tests(const int num_iters, const int max_power_2)
@@ -206,13 +247,37 @@ static void run_time_tests(const int num_iters, const int max_power_2)
 	std::cout << std::endl << std::string(70, '=') << std::endl << std::endl;
 }
 
+void FAIL_TEST(void)
+{
+	size_t LENGTH = 101;
+	vector_type v(LENGTH, 0);
+	
+	print_vec("FAIL_TEST : vector [", v, "]\n");
+	
+	simple_quick_sorter<iterator_type> sorter(v.begin(), v.end());
+	auto sorted_iter = sorter.begin();
+	
+	// request all the sorted values, one by one
+	for (int64_t i = 0; i < LENGTH; ++i)
+		++sorted_iter;
+	
+	print_vec("RESULT : vector [", v, "]\n\n");
+}
+
 int main(int argc, const char * argv[])
 {
-	// basic test
-	print_test(40);
+	// THE OTHER TESTS AREN'T REACHED; THIS ONE IS DESIGNED TO FAIL
+	// IF YOU GET THIS ONE TO PASS, THE ONES BELOW SHOULD PASS ALSO
+	FAIL_TEST();
+	
+	// basic test: sort a vector of unique consecutive integers
+	basic_test(40);
+	
+	// collision test: sort various vectors containing duplicate values
+	collision_test(10000, 2000);
 	
 	// run a timing test and print R-compatible results
-	run_time_tests(25, 23);
+	run_time_tests(10, 16);
 	
 	return 0;
 }

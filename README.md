@@ -1,3 +1,12 @@
+# WARNING -- WARNING -- WARNING
+
+The code presently in this repository contains a serious bug that will cause some sort operations to hang.  We're working on finding that bug.  Until then, you should not use the incremental quicksort algorithm here.
+
+Thanks,
+
+The Mgmt.
+
+
 # incsort
 
 This project demonstrates an [incremental sort algorithm](<https://en.wikipedia.org/wiki/Partial_sorting#Incremental_sorting>) written in C++ that allows sorted results to be obtained from an iterator without having to sort the entire vector up front.  This allows sorting to be done while showing progress in a progress panel, for example.
